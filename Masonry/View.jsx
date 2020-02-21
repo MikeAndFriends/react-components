@@ -57,7 +57,8 @@
 
 import React from 'react';
 import PropTypes from 'prop-types';
-import classNames from 'classnames';
+//import classNames from 'classnames';
+import classes from './Masonry.module.css';
 import throttle from 'lodash/throttle';
 
 const noPage = { stop: 0 };
@@ -69,7 +70,7 @@ const classNamePropType = PropTypes.oneOfType([
   PropTypes.array
 ]);
 
-export default class Masonry extends React.PureComponent {
+class Masonry extends React.PureComponent {
   static propTypes = {
     alignCenter: PropTypes.bool.isRequired,
     columnGutter: PropTypes.number.isRequired,
@@ -134,7 +135,9 @@ export default class Masonry extends React.PureComponent {
 
   dynamicWidth = () => {
     const _cols = this.props.numColumns;
-    const _containerWidth = this.node.offsetWidth;
+    // console.log('[Masonry.js] _cols', _cols);
+    const _containerWidth = this.node.offsetWidth; /* window width */
+    // console.log('[Masonry.js] _containerWidth', _containerWidth);
     const _gutter = this.props.columnGutter;
     if (this.state.containerWidth === _containerWidth && this.state.columnWidth) {
       return this.state.columnWidth;
@@ -143,8 +146,14 @@ export default class Masonry extends React.PureComponent {
     // gutter has been subtracted from the container width, divided by
     // number of columns.
     // Number of gutters are one less than number of columns.
-    const _dynColWidth = Math.floor((_containerWidth - _gutter * (_cols - 1)) / _cols)
-    const _columnWidth = _cols ? _dynColWidth : this.props.columnWidth;
+    const _dynColWidth = Math.floor((_containerWidth - _gutter * (_cols - 1)) / _cols);
+    // console.log('[Masonry.js] _dynColWidth', _dynColWidth);
+    let _columnWidth = _cols ? _dynColWidth : this.props.columnWidth;
+
+    // If the window width is less than the column width, use window width
+    if (_columnWidth > _containerWidth)
+      _columnWidth = _containerWidth;
+
     if (!_columnWidth) {
       throw new Error(`Can't figure out column width, either 'numColumns' or 'columnWidth' needs to be set.`);
     }
@@ -157,6 +166,7 @@ export default class Masonry extends React.PureComponent {
 
   prepareComponent = (itemComponent) => {
     let _component = itemComponent.constructor;
+
     let _componentName = _component.displayName || _component.name;
 
     if (!('getHeightFromProps' in _component)) {
@@ -187,13 +197,20 @@ export default class Masonry extends React.PureComponent {
     } = props;
 
     const { componentName, heightSelector, columnSpanSelector } = this.prepareComponent(itemComponent);
+
     // Decide a starter position for centering
     const viewableWidth = this.node.offsetWidth;
     const columnWidth = this.dynamicWidth();
     const viewableHeight = this.getViewableHeight();
-    const maxColumns = numColumns || Math.floor(viewableWidth / (columnWidth + columnGutter));
+    let maxColumns = numColumns || Math.floor(viewableWidth / (columnWidth + columnGutter));
+
+    // maxColumns should not be less than 1 (may occur when viewableWidth is less than columnWidth)
+    maxColumns = maxColumns < 1 ? 1 : maxColumns;
+
     const spannableWidth = maxColumns * columnWidth + (columnGutter * (maxColumns - 1));
+
     const viewableStart = this.props.alignCenter && !numColumns ? (viewableWidth - spannableWidth) / 2 : 0;
+
 
     // Setup bounds and limiters for deciding how to stage items in a page
     const itemsPerPage = maxColumns * Math.ceil(viewableHeight / this.state.averageHeight);
@@ -505,6 +522,7 @@ export default class Masonry extends React.PureComponent {
     const pages = this.state.pages.map(page => {
       const visible = this.isPageVisible({ page, top, viewableHeight });
 
+
       isChanged = isChanged || page.visible !== visible;
 
       return {
@@ -573,9 +591,11 @@ export default class Masonry extends React.PureComponent {
 
   render() {
     const {
+      /*
       containerClassName,
       layoutClassName,
       pageClassName,
+      */
       hasMore,
       loadingElement,
       isLoading,
@@ -591,9 +611,9 @@ export default class Masonry extends React.PureComponent {
     return (
       <div
         ref={this.onReference}
-        className={classNames(containerClassName)}>
+        className={classes.containerClassName}>
         <div
-          className={classNames(layoutClassName)}
+          className={classes.layoutClassName}
           style={{ height: `${layoutHeight}px`, position: 'relative' }}>
           {pages.map((page, index) => {
             if (!page.visible) {
@@ -602,21 +622,22 @@ export default class Masonry extends React.PureComponent {
 
             return (
               <div
-                className={classNames(pageClassName)}
+                className={classes.pageClassName}
                 key={index}>
                 {page.items.map(({ props, left, top, width, height, columnSpan }, itemIndex) => {
+
                   return (
                     <Item
                       key={itemIndex}
-                      columnSpan={columnSpan}
-                      style={{
-                        position: 'absolute',
-                        left: '0',
-                        top: '0',
-                        width: `${width}px`,
-                        height: `${height}px`,
-                        transform: `translate3d(${left}px, ${top}px, 0)`
-                      }}
+                        columnspan={columnSpan}
+                        style={{
+                          position: 'absolute',
+                          left: '0',
+                          top: '0',
+                          width: `${width}px`,
+                          height: `${height}px`,
+                          transform: `translate3d(${left}px, ${top}px, 0)`
+                        }}
                       {...props}
                     />
                   );
@@ -630,3 +651,5 @@ export default class Masonry extends React.PureComponent {
     );
   }
 }
+
+export default Masonry;
